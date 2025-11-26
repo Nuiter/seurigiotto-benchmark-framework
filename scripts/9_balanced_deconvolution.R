@@ -64,29 +64,51 @@ analyze_composition_robust <- function(data, markers) {
       clusters <- factor(meta$leiden_clus)
       expr_data <- getExpression(obj, values = "normalized", output = "matrix")
       names(clusters) <- meta$cell_ID
-      clusters <- clusters[colnames(expr_data)]
+      # Ensure alignment
+      common_cells <- intersect(names(clusters), colnames(expr_data))
+      clusters <- clusters[common_cells]
+      expr_data <- expr_data[, common_cells]
     }
 
     # Calculate scores per cluster using a robust method (75th percentile)
     cluster_scores <- sapply(levels(clusters), function(cl) {
       cells_in_cluster <- names(clusters)[clusters == cl]
+      if(length(cells_in_cluster) == 0) return(rep(0, length(markers))) # Handle empty clusters
+      
       sapply(markers, function(m) {
         available <- intersect(m, rownames(expr_data))
         if (length(available) > 0) {
-          quantile(colMeans(expr_data[available, cells_in_cluster, drop = FALSE]), 0.75)
+          # Handle single gene case vs multiple genes
+          if(length(available) == 1) {
+             val <- expr_data[available, cells_in_cluster]
+             quantile(val, 0.75)
+          } else {
+             quantile(colMeans(expr_data[available, cells_in_cluster, drop = FALSE]), 0.75)
+          }
         } else { 0 }
       })
     })
 
     # Convert scores to probabilities using softmax
-    cluster_probs <- apply(scale(t(cluster_scores)), 1, function(x) exp(x) / sum(exp(x)))
+    # Transpose so rows are clusters, cols are cell types
+    cluster_scores_t <- t(cluster_scores)
+    cluster_probs <- apply(scale(cluster_scores_t), 1, function(x) {
+        # Handle potential NAs from scaling constant vectors
+        x[is.na(x)] <- 0 
+        exp(x) / sum(exp(x))
+    })
+    cluster_probs <- t(cluster_probs) # Transpose back
+    colnames(cluster_probs) <- names(markers)
 
     # Calculate overall tissue composition, weighted by cluster size
     cluster_sizes <- table(clusters)
-    tissue_comp <- rowSums(cluster_probs * (as.numeric(cluster_sizes) / sum(cluster_sizes)))
+    # Ensure order matches
+    cluster_sizes <- cluster_sizes[rownames(cluster_probs)]
+    
+    tissue_comp <- colSums(cluster_probs * (as.numeric(cluster_sizes) / sum(cluster_sizes)))
     
     results[[pipeline]] <- list(
-      cluster_probs = t(cluster_probs),
+      cluster_probs = cluster_probs,
       tissue_composition = tissue_comp,
       diversity = -sum(tissue_comp[tissue_comp > 0] * log(tissue_comp[tissue_comp > 0]))
     )
@@ -146,10 +168,18 @@ analyze_immune_tumor_ratios <- function(results_tme, data, output_dir) {
   
   ratio_data <- do.call(rbind, lapply(names(results_tme), function(p) {
     comp <- results_tme[[p]]$tissue_composition
-    immune_prop <- sum(comp[c("Macrophages", "Neutrophils", "T_cells", "B_cells")])
+    
+    # SAFE ACCESS to named vector
+    tumor_prop <- if("Tumor" %in% names(comp)) comp[["Tumor"]] else 0
+    
+    # Sum immune cells (check existence)
+    immune_types <- c("Macrophages", "Neutrophils", "T_cells", "B_cells")
+    existing_immune <- intersect(immune_types, names(comp))
+    immune_prop <- if(length(existing_immune) > 0) sum(comp[existing_immune]) else 0
+    
     data.frame(
       Pipeline = p,
-      Ratio = immune_prop / (comp["Tumor"] + 1e-6),
+      Ratio = immune_prop / (tumor_prop + 1e-6), # Avoid division by zero
       N_Clusters = data$n_clusters[p]
     )
   }))

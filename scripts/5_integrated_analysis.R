@@ -27,23 +27,29 @@ dir.create(integrated_analysis_subdir, showWarnings = FALSE, recursive = TRUE)
 load_cancer_signatures <- function() {
   cat("\n[SIGNATURES] Loading cancer signatures from CSV...\n")
   signatures <- list()
-  cat("  Searching for signature files in project root:", getwd(), "\n")
-
+  
+  # Define the correct path to the data directory
+  data_dir_sigs <- "data" 
+  cat("  Searching for signature files in:", file.path(getwd(), data_dir_sigs), "\n")
+  
   load_sig <- function(file, name) {
-    if (file.exists(file)) {
-      data <- read.csv(file, stringsAsFactors = FALSE)
+    # Build the full path: data/Tumor.csv
+    file_path <- file.path(data_dir_sigs, file) 
+    
+    if (file.exists(file_path)) {
+      data <- read.csv(file_path, stringsAsFactors = FALSE)
       signatures[[name]] <<- data$Name
       cat("  ", name, ":", length(signatures[[name]]), "genes\n")
     } else {
-      cat("  WARNING:", file, "not found. Skipping.\n")
+      cat("  WARNING:", file_path, "not found. Skipping.\n")
     }
   }
-
+  
   load_sig("Tumor.csv", "Tumor")
   load_sig("Fibroblasts.csv", "Fibroblasts")
   load_sig("Macrophages.csv", "Macrophages")
   load_sig("Neutrophils.csv", "Neutrophils")
-
+  
   return(signatures)
 }
 cancer_signatures <- load_cancer_signatures()

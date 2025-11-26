@@ -31,6 +31,11 @@ Developed as part of a Master's Thesis, this project is structured as a robust r
 - **In-depth Downstream Analysis:** Includes modules for marker gene detection, cell-type signature scoring, simulated deconvolution, and advanced spatial visualization.
 - **100% Reproducible:** All code is open, well-documented, and designed for reproducibility.
 
+### Note on Resolution & Scalability:
+
+- The provided scripts and benchmarks are configured for 16 µm resolution binning. This resolution was chosen to balance spatial granularity with accessibility, allowing the full workflow (including Giotto) to run on standard workstations (32GB - 64GB RAM).
+- However, the framework is resolution-agnostic. To analyze finer resolutions (8 µm or 2 µm), simply provide the corresponding input matrix. Caution: High-resolution bins (2 µm) scale memory requirements exponentially.
+
 ### Repository Structure
 ```
 📁 scripts/

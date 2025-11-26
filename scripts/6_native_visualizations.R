@@ -57,8 +57,11 @@ if (!exists("final_results") || !("data" %in% names(final_results))) {
 # FUNCTION 1: NATIVE SEURAT VISUALIZATION
 # =============================================================================
 
-visualize_seurat_native <- function(seurat_obj, save_name = "seurat_native", output_dir) {
+visualize_seurat_native <- function(seurat_obj, save_name = "seurat_native", output_dir, custom_title = NULL) {
   cat("\n[SEURAT] Creating native visualization with SpatialDimPlot...\n")
+  
+  # Define Title
+  plot_title <- if(!is.null(custom_title)) custom_title else "Seurat - Native Visualization"
 
   p_seurat <- SpatialDimPlot(
     seurat_obj,
@@ -71,7 +74,7 @@ visualize_seurat_native <- function(seurat_obj, save_name = "seurat_native", out
     label.size = 3,
     repel = TRUE
   ) +
-    ggtitle("Seurat - Native Visualization",
+    ggtitle(plot_title,
             subtitle = paste0(length(unique(Idents(seurat_obj))), " clusters")) +
     theme(
       plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
@@ -89,7 +92,7 @@ visualize_seurat_native <- function(seurat_obj, save_name = "seurat_native", out
 # FUNCTION 2: NATIVE GIOTTO VISUALIZATION
 # =============================================================================
 
-visualize_giotto_native <- function(giotto_obj, save_name = "giotto_native", output_dir) {
+visualize_giotto_native <- function(giotto_obj, save_name = "giotto_native", output_dir, custom_title = NULL) {
   cat("\n[GIOTTO] Creating native visualization with spatPlot...\n")
 
   cluster_column_name <- "leiden_clus" # Standard Giotto cluster column
@@ -99,6 +102,9 @@ visualize_giotto_native <- function(giotto_obj, save_name = "giotto_native", out
 
   n_clusters <- length(unique(pDataDT(giotto_obj)[[cluster_column_name]]))
   cat("   Clusters detected:", n_clusters, "\n")
+  
+  # Define Title
+  plot_title <- if(!is.null(custom_title)) custom_title else "Giotto - Native Visualization"
 
   # Create a consistent color palette
   if (n_clusters > 0) {
@@ -127,7 +133,7 @@ visualize_giotto_native <- function(giotto_obj, save_name = "giotto_native", out
 
   if (!is.null(p_giotto)) {
     p_giotto <- p_giotto +
-      ggtitle("Giotto - Native Visualization",
+      ggtitle(plot_title,
               subtitle = paste0(n_clusters, " clusters")) +
       theme(
         plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
@@ -157,7 +163,7 @@ create_native_comparison_plot <- function(data, output_dir) {
     data$seurat, pt.size.factor = 1.6, stroke = 0.1, label = FALSE,
     image.alpha = 0, alpha = 1
   ) +
-    ggtitle("Seurat", subtitle = paste0(data$n_clusters["seurat"], " clusters")) +
+    ggtitle("Seurat Pipeline", subtitle = paste0(data$n_clusters["seurat"], " clusters")) +
     theme_void() +
     theme(
       plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
@@ -170,7 +176,7 @@ create_native_comparison_plot <- function(data, output_dir) {
     gobject = data$giotto, cell_color = "leiden_clus", point_size = 1.2,
     show_image = FALSE, show_plot = FALSE, return_plot = TRUE
   ) +
-    ggtitle("Giotto", subtitle = paste0(data$n_clusters["giotto"], " clusters")) +
+    ggtitle("Giotto Pipeline", subtitle = paste0(data$n_clusters["giotto"], " clusters")) +
     theme_void() +
     theme(
       plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
@@ -190,8 +196,10 @@ create_native_comparison_plot <- function(data, output_dir) {
       image.alpha = 0, alpha = 1
     )
   }
+  
+  # Apply common theme and correct title
   p_optimized <- p_optimized +
-    ggtitle("Optimized", subtitle = paste0(data$n_clusters["optimized"], " clusters")) +
+    ggtitle("Optimized Pipeline", subtitle = paste0(data$n_clusters["optimized"], " clusters")) +
     theme_void() +
     theme(
       plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
@@ -231,13 +239,26 @@ run_native_visualizations <- function(data, output_dir) {
   # 1. Create individual, detailed native plots
   cat("[PHASE 1] Individual native visualizations\n")
   cat("-----------------------------------------------\n")
+  
+  # Standard Seurat and Giotto (Default titles are fine)
   p_seurat <- visualize_seurat_native(data$seurat, "seurat_native_detailed", output_dir)
   p_giotto <- visualize_giotto_native(data$giotto, "giotto_native_detailed", output_dir)
 
+  # Optimized Pipeline - WE FORCE THE TITLE HERE
   if (data$opt_type == "giotto") {
-    visualize_giotto_native(data$optimized, "optimized_native_detailed", output_dir)
+    visualize_giotto_native(
+      data$optimized, 
+      "optimized_native_detailed", 
+      output_dir, 
+      custom_title = "Optimized Pipeline - Native Visualization"
+    )
   } else {
-    visualize_seurat_native(data$optimized, "optimized_native_detailed", output_dir)
+    visualize_seurat_native(
+      data$optimized, 
+      "optimized_native_detailed", 
+      output_dir,
+      custom_title = "Optimized Pipeline - Native Visualization"
+    )
   }
 
   # 2. Create side-by-side comparison plot
